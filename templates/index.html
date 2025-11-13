@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BigQuery 查詢</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #dddddd; text-align: left; padding: 8px; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>BigQuery 查詢</h1>
+    <form id="queryForm">
+        <label for="query_type">選擇查詢類型:</label>
+        <select id="query_type" name="query_type">
+            <option value="employee">Employee</option>
+            <option value="client">Client</option>
+        </select>
+
+        <label for="query_id">輸入 ID:</label>
+        <input type="text" id="query_id" name="query_id">
+        <button type="submit">查詢</button>
+    </form>
+
+    <hr>
+
+    <h2>查詢結果:</h2>
+    <div id="results"></div>
+
+    <script>
+        document.getElementById('queryForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            const queryType = document.getElementById('query_type').value;
+            const queryId = document.getElementById('query_id').value;
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>查詢中...</p>';
+
+            fetch('/api/query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ type: queryType, id: queryId }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    resultsDiv.innerHTML = `<p>錯誤: ${data.error}</p>`;
+                    return;
+                }
+
+                if (data.length === 0) {
+                    resultsDiv.innerHTML = '<p>找不到符合條件的資料。</p>';
+                    return;
+                }
+
+                let table = '<table><thead><tr>';
+                const headers = Object.keys(data[0]);
+                headers.forEach(header => {
+                    table += `<th>${header}</th>`;
+                });
+                table += '</tr></thead><tbody>';
+
+                data.forEach(row => {
+                    table += '<tr>';
+                    headers.forEach(header => {
+                        table += `<td>${row[header]}</td>`;
+                    });
+                    table += '</tr>';
+                });
+
+                table += '</tbody></table>';
+                resultsDiv.innerHTML = table;
+            })
+            .catch(error => {
+                resultsDiv.innerHTML = `<p>查詢失敗: ${error}</p>`;
+            });
+        });
+    </script>
+</body>
+</html>
