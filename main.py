@@ -31,15 +31,15 @@ SELECT
 FROM
     {path}
 """
-    # 3. 處理 WHERE 條件
+    # 處理 WHERE 條件
     if where_clause:
         sql_query += f"\nWHERE\n    {where_clause}"
 
-    # 4. 處理 LIMIT 限制
+    # 處理 LIMIT 限制
     if limit is not None and limit > 0:
         sql_query += f"\nLIMIT {limit}"
         
-    # 5. 返回完整的查詢語法
+
     return sql_query.strip() + ";" # .strip() 移除開頭多餘的空行，並加上分號
 
 @app.route('/')
@@ -49,6 +49,7 @@ def index():
 @app.route('/api/query', methods=['POST'])
 def query_bigquery():
     data = request.get_json()
+    print(data)
     query_type = data.get('type')
     query_id = data.get('id')
 
@@ -65,15 +66,23 @@ def query_bigquery():
         return jsonify({"error": "無效的查詢類型"}), 400
 
     where_clause = None
-    if query_id: # 只有在 query_id 有值時才建立 WHERE 條件
+    # 只有在 query_id 有值時才建立 WHERE 條件
+    if query_id: 
         try:
-            # 嘗試將輸入轉換為整數，以匹配 INT64 類型
-            int(query_id)
-            # 如果 id 是數值類型，則不應加單引號
-            where_clause = f"{id_column} = {query_id}"
+            if(query_id.isdigit()):
+                int(query_id)
+                where_clause = f"{id_column} = {query_id}"  # 如果 id 是數值類型，則不應加單引號
+            #如果不是數值，則是輸入名稱，更改欄位
+            else:
+                print("string input")
+                if table_id == "client":
+                    id_column = "client_name"
+                elif table_id == "emploee":
+                    id_column = "name"
+                where_clause = f"{id_column}='{query_id}'"
+                print(where_clause)
         except ValueError:
-            # 如果使用者輸入的不是數字，回傳錯誤
-            return jsonify({"error": "ID 必須是數字"}), 400
+            return jsonify({"error": "條件指定錯誤"}), 400
 
     QUERY = generate_bigquery_query(
         project_id, 
