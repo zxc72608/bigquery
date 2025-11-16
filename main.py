@@ -6,8 +6,26 @@ app = Flask(__name__)
 # --- BigQuery 設定 ---
 project_id = "bigquery-477702"
 dataset_id = "bq_sam"
-# table_id is now dynamic
 client = bigquery.Client(project=project_id)
+
+#檢查是否為query起始(query需不需要加AND)
+def check_querystart(query_start) ->bool:
+    if(query_start):
+        return True
+    else:
+        return False
+
+def set_wherequery(column_name:str , search: str | int , start: bool)->str:
+    return_str=""
+    if not start:
+        return_str += f" AND\n"
+
+    if search.isdigit() and column_name != "phone":
+        return_str += f"{column_name} = {search}"
+    else:
+        return_str += f"{column_name}='{search}'"
+    return return_str
+        
 
 def generate_bigquery_query(project_id: str, dataset_id: str, table_id: str,
                             select_columns: str = "*", where_clause: str = None, limit: int = None) -> str:
@@ -52,37 +70,96 @@ def query_bigquery():
     print(data)
     query_type = data.get('type')
     query_id = data.get('id')
+    query_branchid = data.get('branch_id')
+    query_salary = data.get('salary')
+    query_sex= data.get('sex')
+    query_supid=data.get('sup_id')
+    query_phone = data.get('phone')
 
-    if not query_type:
-        return jsonify({"error": "缺少 'type' 參數"}), 400
+    #計算有幾個where條件查詢 扣掉選擇client或employee(此為選擇table)
 
     if query_type == 'client':
         table_id = 'client'
-        id_column = 'client_id'
     elif query_type == 'employee':
         table_id = 'emploee'
-        id_column = 'emp_id'
-    else:
-        return jsonify({"error": "無效的查詢類型"}), 400
+        #id_column = 'emp_id'
 
-    where_clause = None
-    # 只有在 query_id 有值時才建立 WHERE 條件
+    query_start = False
+
+    where_clause = ""
+
+ # 只有在有值時才建立 WHERE 條件
     if query_id: 
         try:
-            if(query_id.isdigit()):
+            query_start = True
+            if query_id.isdigit():
                 int(query_id)
-                where_clause = f"{id_column} = {query_id}"  # 如果 id 是數值類型，則不應加單引號
+                if table_id == "client":
+                    where_clause += set_wherequery("client_id",query_id,True)
+                elif table_id == "emploee":
+                    where_clause += set_wherequery("emp_id",query_id,True)
             #如果不是數值，則是輸入名稱，更改欄位
             else:
-                print("string input")
                 if table_id == "client":
-                    id_column = "client_name"
+                    where_clause += set_wherequery("client_name",query_id,True)
                 elif table_id == "emploee":
-                    id_column = "name"
-                where_clause = f"{id_column}='{query_id}'"
-                print(where_clause)
+                    where_clause+= set_wherequery("name",query_id,True)
         except ValueError:
-            return jsonify({"error": "條件指定錯誤"}), 400
+            return jsonify({"error": "id 或 name 條件指定錯誤"}), 400
+
+    if query_branchid:
+        if not query_branchid.isdigit() :
+            return jsonify({"error": "branch id 條件指定錯誤"}), 400
+        else:
+            int(query_branchid)
+            if check_querystart(query_start) == False:
+                query_start=True;
+                where_clause += set_wherequery("branch_id",query_branchid,True)
+            else:
+                where_clause += set_wherequery("branch_id",query_branchid,False)
+        
+
+    if query_salary:
+        if not query_salary.isdigit() :
+                return jsonify({"error": "salary 條件指定錯誤"}), 400
+        else:
+            int(query_salary)
+            if check_querystart(query_start) == False:
+                query_start=True;
+                where_clause += set_wherequery("salary",query_salary,True)
+            else:
+                where_clause += set_wherequery("salary",query_salary,False)
+
+    if query_sex:
+        if query_sex.isdigit():
+            return jsonify({"error": "sex 條件指定錯誤"}), 400
+        else:
+            if check_querystart(query_start)== False :
+                query_start=True;
+                where_clause += set_wherequery("sex",query_sex,True)
+            else:
+                where_clause += set_wherequery("sex",query_sex,False)
+
+    if  query_supid:
+        if not  query_supid.isdigit() :
+                return jsonify({"error": "supervisor id 條件指定錯誤"}), 400
+        else:
+            int(query_supid)
+            if check_querystart(query_start) == False:
+                query_start=True;
+                where_clause += set_wherequery("sup_id",query_supid,True)
+            else:
+                where_clause += set_wherequery("sup_id",query_supid,False)
+
+    if  query_phone:
+        if not  query_phone.isdigit() :
+                return jsonify({"error": "phone 條件指定錯誤"}), 400
+        else:
+            if check_querystart(query_start) == False:
+                query_start=True;
+                where_clause += set_wherequery("phone",query_phone,True)
+            else:
+                where_clause += set_wherequery("phone",query_phone,False)
 
     QUERY = generate_bigquery_query(
         project_id, 

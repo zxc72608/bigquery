@@ -9,6 +9,9 @@
         table { border-collapse: collapse; width: 100%; }
         th, td { border: 1px solid #dddddd; text-align: left; padding: 8px; }
         th { background-color: #f2f2f2; }
+        label { display: block; margin-top: 1em; }
+        input { margin-bottom: 1em; }
+        button { margin-top: 1em; }
     </style>
 </head>
 <body>
@@ -20,8 +23,26 @@
             <option value="client">Client</option>
         </select>
 
-        <label for="query_id">輸入 ID或名字:</label>
-        <input type="text" id="query_id" name="query_id">
+        <div id="employee_fields">
+            <label for="employee_id">輸入 ID或名字:</label>
+            <input type="text" id="employee_id" name="employee_id">
+            <label for="branch_id">Branch ID:</label>
+            <input type="text" id="branch_id" name="branch_id">
+            <label for="salary">Salary:</label>
+            <input type="text" id="salary" name="salary">
+            <label for="sex">Sex:</label>
+            <input type="text" id="sex" name="sex">
+            <label for="sup_id">Supervisor ID:</label>
+            <input type="text" id="sup_id" name="sup_id">
+        </div>
+
+        <div id="client_fields" style="display: none;">
+            <label for="client_id">輸入 ID或名字:</label>
+            <input type="text" id="client_id" name="client_id">
+            <label for="phone">Phone:</label>
+            <input type="text" id="phone" name="phone">
+        </div>
+        
         <button type="submit">查詢</button>
     </form>
 
@@ -31,20 +52,46 @@
     <div id="results"></div>
 
     <script>
+        document.getElementById('query_type').addEventListener('change', function(event) {
+            const queryType = event.target.value;
+            const employeeFields = document.getElementById('employee_fields');
+            const clientFields = document.getElementById('client_fields');
+
+            if (queryType === 'employee') {
+                employeeFields.style.display = 'block';
+                clientFields.style.display = 'none';
+            } else if (queryType === 'client') {
+                employeeFields.style.display = 'none';
+                clientFields.style.display = 'block';
+            }
+        });
+
         document.getElementById('queryForm').addEventListener('submit', function(event) {
             event.preventDefault();
             
             const queryType = document.getElementById('query_type').value;
-            const queryId = document.getElementById('query_id').value;
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = '<p>查詢中...</p>';
+
+            let queryData = { type: queryType };
+
+            if (queryType === 'employee') {
+                queryData.id = document.getElementById('employee_id').value;
+                queryData.branch_id = document.getElementById('branch_id').value;
+                queryData.salary = document.getElementById('salary').value;
+                queryData.sex = document.getElementById('sex').value;
+                queryData.sup_id = document.getElementById('sup_id').value;
+            } else { // client
+                queryData.id = document.getElementById('client_id').value;
+                queryData.phone = document.getElementById('phone').value;
+            }
 
             fetch('/api/query', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ type: queryType, id: queryId }),
+                body: JSON.stringify(queryData),
             })
             .then(response => response.json())
             .then(data => {
